@@ -1,0 +1,190 @@
+---
+title : CAPM, 자본자산 결정모형
+author : 연성
+date : "2021-12-05"
+output: 
+  html_document: 
+    fig_height: 6
+    fig_width: 10
+    highlight: textmate
+    theme: journal
+    toc: yes
+    toc_float: yes
+---
+
+---
+
+# 개별 주식의 수익율 측정법
+
+$$ R_{i} = \alpha_{i} + \beta_{i}R_{m} + error $$
+개별주식의 수익률은 위와 같은 모델로 표현할 수 있다. 
+
+[최소제곱법(Least Square)](https://darkpgmr.tistory.com/56)에 의해 $ \beta_{i}=\sigma_{im}/\sigma_{m}^2 $ 으로 계산된다.
+이를 해석하면 $ \beta_{i} $ 는 시장과 개별주식의 공분산 / 시장의 분산이다. 이를 말로 풀어 설명하면 시장이 움직일 때 개별주식이 얼마나 민감하게 움직이는가다. 1일 경우 개별주식과 시장이 똑같이 움직이고 1보다 클 경우 시장보다 개별 주식이 더 많이 변동한다고 해석하면 된다. 
+
+# CAPM 비판
+ 앞에서 살펴본 회귀분석을 적용하기 전에 [여러 가정](https://ko.wikipedia.org/wiki/%ED%9A%8C%EA%B7%80_%EB%B6%84%EC%84%9D)들을 만족해야한다. 여러 논문들에서 주식시장에서 여러 가정들이 만족하지 않음을 실험적으로 입증했지만 CAPM는 자본자산의 가격을 측정할 수 있는 지표로 아직까지 사용되고 있다. 따라서 개별 주식의 $\beta$ 값 분석을 본 글에서 해보고자 한다. 
+ 
+ 다만 OLS method에서는 이상값이 영향을 많이 받으므로 robust Least Trimmed Square (LTS) 방식과 MM추정법 (robust MM)을 이용해 $\beta$  값도 추정하여 해석에 이용한다.
+ 
+ [robust MM](http://databaser.net/moniwiki/pds/_eb_a1_9c_eb_b2_84_ec_8a_a4_ed_8a_b8_ed_9a_8c_ea_b7_80_eb_b6_84_ec_84_9d/m_estimator.pdf)와 LTS에서 구한  $\beta$  값도 LS방식을 이용해 구한  $\beta$값과 동일하게 해석할 수 있다.
+ 
+ 본고에서는 52주(1년) 종가 데이터를 이용한다.
+ 
+---
+
+# 기본설정
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(tqk)
+library(quantmod)
+library(httr)
+library(dplyr)
+library(rvest)
+library(MASS)
+library(lubridate)
+```
+[tqk](https://github.com/mrchypark/tqk)
+
+```{r}
+OneYearAgo = Sys.Date() - 365
+```
+
+
+---
+
+# 코스피 데이터
+```{r}
+data = list()
+
+tryCatch({
+
+  for(j in 1:60) 
+  {
+    url = paste0('https://finance.naver.com/sise/sise_index_day.nhn?code=KOSPI&page=',j)
+    down_table = GET(url)
+    Sys.setlocale("LC_ALL", "English")
+    table = read_html(down_table, encoding = "EUC-KR")%>%html_table(fill = TRUE)
+    mytable = table[[1]]
+    Sys.setlocale("LC_ALL", "Korean")
+    mytable = na.omit(mytable)
+    rownames(mytable) = NULL
+    data[[j]] = mytable
+    Sys.sleep(0.01)
+  }  
+
+}, error = function(e) {
+  warning(paste0("Error"))
+
+})
+
+data2 = do.call(rbind, data)
+
+KS11 = data2[order(data2$날짜),][,1:2]
+
+KS11 = data.frame(KS11)
+
+KS11$체결가 = lapply( KS11$체결가, function(x) as.numeric(gsub("[+-,]", "", x)))
+
+KS11$체결가 = unlist(KS11$체결가)
+
+kospi = KS11
+kospi$날짜= ymd(kospi[, 1])
+
+kospi = kospi %>% filter(날짜 > OneYearAgo)
+kospi$return = kospi$체결가 / lag(kospi$체결가) -1
+kospi = na.omit(kospi)
+
+head(kospi)
+```
+
+```{r}
+ggplot(kospi, aes(x=날짜, y = return)) + 
+        geom_smooth() +
+        geom_point() + 
+        ggtitle("코스피 일별 수익율")
+```
+
+# 삼성전자 데이터 
+```{r}
+code_get() %>% 
+  filter(grepl("^삼성전자$", name)) %>% 
+  dplyr::select(code) %>% 
+  tqk_get(from = OneYearAgo) -> samsung
+
+samsung$return = (samsung$close)/lag(samsung$close) - 1
+samsung = na.omit(samsung)
+head(samsung)
+```
+
+```{r}
+ggplot(samsung, aes(x=date, y = return)) + 
+        geom_smooth() +
+        geom_point() + 
+        ggtitle("삼성전자 일별 수익율")
+```
+
+---
+
+# 삼성전자와 코스피 수익율
+
+```{r}
+kospi_samsung_return = data.frame(cbind(kospi$return,samsung$return))
+
+colnames(kospi_samsung_return) = c("kospi_return", "samsung_return")
+                                        
+ggplot(data = kospi_samsung_return, aes(x=samsung_return, y = kospi_return)) + 
+        geom_point() +
+        geom_smooth()
+```
+
+# OLS 회귀분석 
+```{r}
+OLS_model = lm(samsung_return~kospi_return, data = kospi_samsung_return)
+
+OLS_model
+```
+
+ OLS로 추정한 $\beta$ 값이 1.0991760 으로 삼성전자와 코스피 시장을 비슷하게 움직이는 모습을 확인 할 수 있다. 
+
+
+# LTS 회귀분석
+
+```{r}
+LTS_model = lqs(samsung_return~kospi_return, data = kospi_samsung_return, method = 'lqs')
+
+LTS_model
+```
+
+ 이상치를 제거하는 방식인 LTS 로 추정한 $\beta$ 값이 0.674305 으로 OLS로 구한 추정치와 꽤 많이 차이가 난다.
+ 
+ 
+ 
+# robust MM 회귀분석
+
+```{r}
+MM_model = rlm(samsung_return~kospi_return, data = kospi_samsung_return)
+
+MM_model
+```
+ LTS 로 추정한 $\beta$ 값이 1.0304 으로 OLS로 구한 추정치와 유사하다.
+
+
+---
+ 
+ 
+# 해석
+ OLS,robust MM 을 이용한 추정에서는  $\beta$ 값 1과 유사하게 나왔다 이는  삼성전자는 코스피와 비슷하게 움직인다고 해석할 수 있다.
+ 
+ LTS를 이용한 추정에는  $\beta$ 값 0.674305으로 삼성전자는 코스피에 비해 덜 민감하게 움직인다. 
+ 
+ LTS가 이상치로 추정되는 값을 제외하고 계산한다는 점을 미뤄볼 때 삼성전자와 코스피는 주식시장에 대형사건(ex.코로나19)이 있을 경우 비슷한 움직임을 보이고 큰 사건이 없은 경우 삼성전자는 코스피가 움직이는 것보다 덜 민감하게 움직인다고 해석 할 수 있다. 
+ 
+ 
+  
+ 

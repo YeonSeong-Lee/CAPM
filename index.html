@@ -1540,12 +1540,12 @@ div.tocify {
 <div id="개별-주식의-수익율-측정법" class="section level2">
 <h2>개별 주식의 수익율 측정법</h2>
 <p><span class="math display">\[R_{i} = \alpha_{i} + \beta_{i}R_{m} + error\]</span> 개별주식의 수익률은 위와 같은 모델로 표현할 수 있다.</p>
-<p><a href="https://darkpgmr.tistory.com/56">최소제곱법(Least Square)</a>에 의해 <span class="math inline">\(\beta_{i}=\sigma_{im}/\sigma_{m}^2\)</span> 으로 계산된다. 이를 해석하면 <span class="math inline">\(\beta_{i}\)</span> 는 시장과 개별주식의 공분산 / 시장의 분산이다. 이를 말로 풀어 설명하면 시장이 움직일 때 개별주식이 얼마나 민감하게 움직이는가다. 1일 경우 개별주식과 시장이 똑같이 움직이고 1보다 클 경우 시장보다 개별 주식이 더 많이 변동한다고 해석하면 된다.</p>
+<p><a href="https://darkpgmr.tistory.com/56">최소제곱법(Originary Least Square)</a>에 의해 <span class="math inline">\(\beta_{i}=\sigma_{im}/\sigma_{m}^2\)</span> 으로 계산된다. 이를 해석하면 <span class="math inline">\(\beta_{i}\)</span> 는 시장과 개별주식의 공분산 / 시장의 분산이다. 이를 말로 풀어 설명하면 시장이 움직일 때 개별주식이 얼마나 민감하게 움직이는가다. 1일 경우 개별주식과 시장이 똑같이 움직이고 1보다 클 경우 시장보다 개별 주식이 더 많이 변동한다고 해석하면 된다.</p>
 </div>
 <div id="capm-비판" class="section level2">
 <h2>CAPM 비판</h2>
 <p>앞에서 살펴본 회귀분석을 적용하기 전에 <a href="https://ko.wikipedia.org/wiki/%ED%9A%8C%EA%B7%80_%EB%B6%84%EC%84%9D">여러 가정</a>들을 만족해야한다. 여러 논문들에서 주식시장에서 여러 가정들이 만족하지 않음을 실험적으로 입증했지만 CAPM는 자본자산의 가격을 측정할 수 있는 지표로 아직까지 사용되고 있다. 따라서 개별 주식의 <span class="math inline">\(\beta\)</span> 값 분석을 본 글에서 해보고자 한다.</p>
-<p>다만 OLS method에서는 이상값이 영향을 많이 받으므로 robust Least Trimmed Square (LTS) 방식과 MM추정법 (robust MM)을 이용해 <span class="math inline">\(\beta\)</span> 값도 추정하여 해석에 이용한다.</p>
+<p>다만 OLS method에서는 이상값의 영향을 많이 받으므로 robust Least Trimmed Square (LTS) 방식과 MM추정법 (robust MM)을 이용해 <span class="math inline">\(\beta\)</span> 값도 추정하여 해석에 이용한다.</p>
 <p><a href="http://databaser.net/moniwiki/pds/_eb_a1_9c_eb_b2_84_ec_8a_a4_ed_8a_b8_ed_9a_8c_ea_b7_80_eb_b6_84_ec_84_9d/m_estimator.pdf">robust MM</a>와 LTS에서 구한 <span class="math inline">\(\beta\)</span> 값도 LS방식을 이용해 구한 <span class="math inline">\(\beta\)</span>값과 동일하게 해석할 수 있다.</p>
 <p>본고에서는 52주(1년) 종가 데이터를 이용한다.</p>
 <hr />
@@ -1687,9 +1687,9 @@ LTS_model</code></pre>
 ## 
 ## Coefficients:
 ##  (Intercept)  kospi_return  
-##    -0.001796      0.673480  
+##    -0.001752      0.678347  
 ## 
-## Scale estimates 0.006505 0.006409</code></pre>
+## Scale estimates 0.006508 0.006395</code></pre>
 <p>이상치를 제거하는 방식인 LTS 로 추정한 <span class="math inline">\(\beta\)</span> 값이 0.674305 으로 OLS로 구한 추정치와 꽤 많이 차이가 난다.</p>
 </div>
 <div id="robust-mm-회귀분석" class="section level3">
